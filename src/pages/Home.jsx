@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Search,
   Image as ImageIcon,
@@ -235,6 +235,28 @@ const HOMEPAGE_FAQS = [
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Auto-detect search query from Google SearchAction (e.g. ?q=pdf-to-word)
+  useEffect(() => {
+    const q = searchParams.get('q') || searchParams.get('search')
+    if (q) {
+      const cleanQ = q.trim()
+      setSearchQuery(cleanQ)
+
+      // Direct exact match redirect (e.g. /?q=pdf-to-word or /?q=word-to-pdf)
+      const exactMatch = ALL_TOOLS.find(
+        (t) =>
+          t.id === cleanQ.toLowerCase() ||
+          t.path.replace('/', '') === cleanQ.toLowerCase() ||
+          t.name.toLowerCase() === cleanQ.toLowerCase()
+      )
+      if (exactMatch) {
+        navigate(exactMatch.path)
+      }
+    }
+  }, [searchParams, navigate])
 
   // Real-time tool filtering by search query and category
   const filteredTools = useMemo(() => {
@@ -252,6 +274,13 @@ export default function Home() {
       return matchesCat && matchesSearch
     })
   }, [searchQuery, activeCategory])
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (filteredTools.length > 0) {
+      navigate(filteredTools[0].path)
+    }
+  }
 
   const websiteSchema = {
     '@context': 'https://schema.org',
@@ -298,31 +327,52 @@ export default function Home() {
 
           {/* Subtext */}
           <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-            High-performance client-side utilities. Compress PNG &amp; JPG images, merge PDF files, format JSON, cut Reels &amp; Shorts, and generate custom vector QR codes with zero server uploads.
+            High-performance client-side utilities. Convert PDF to Word, Word to PDF, Excel to PDF, resize Govt Exam photos, compress images, and format JSON with zero server uploads.
           </p>
 
           {/* Real-Time Live Search Bar */}
-          <div className="max-w-xl mx-auto pt-4">
+          <form onSubmit={handleSearchSubmit} className="max-w-xl mx-auto pt-4">
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search tools (e.g. compress png, merge pdf, 1080x1080, json, qr)…"
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-900/90 border border-white/15 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-brand-500 shadow-2xl transition-all"
+                placeholder="Search any tool (e.g. pdf to word, excel to pdf, ssc photo, json)…"
+                className="w-full pl-12 pr-20 py-3.5 rounded-2xl bg-slate-900/90 border border-white/15 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-brand-500 shadow-2xl transition-all"
               />
               <Search className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white bg-white/10 px-2 py-0.5 rounded-md"
-                >
-                  Clear
-                </button>
-              )}
+              {searchQuery ? (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                  <button
+                    type="submit"
+                    className="text-xs text-white bg-brand-500 hover:bg-brand-600 px-2.5 py-1 rounded-lg font-semibold shadow-sm transition-all"
+                  >
+                    Open ↵
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="text-xs text-slate-400 hover:text-white bg-white/10 px-2 py-1 rounded-lg"
+                    title="Clear"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
             </div>
-          </div>
+            {searchQuery && filteredTools.length > 0 && (
+              <div className="mt-2 text-left">
+                <Link
+                  to={filteredTools[0].path}
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-lg transition-all"
+                >
+                  <span>Direct Match:</span>
+                  <span className="text-white underline">{filteredTools[0].name}</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            )}
+          </form>
 
           {/* Category Filter Pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
